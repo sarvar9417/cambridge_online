@@ -436,11 +436,13 @@ export class LiveExamService {
     if(!questionIds.length)return;
     const result=await this.pool.query(
       `select count(*)::int invalid
-       from questions q join source_papers sp on sp.id=q.source_paper_id
-       join syllabi sy on sy.id=sp.syllabus_id
-       join components c on c.id=sp.component_id
-       where q.id=any($1::uuid[])
-         and (sy.code<>$2 or ($2='0478' and c.number<>2))`,
+       from unnest($1::uuid[]) selected(id)
+       left join questions q on q.id=selected.id
+       left join source_papers sp on sp.id=q.source_paper_id
+       left join syllabi sy on sy.id=sp.syllabus_id
+       left join components c on c.id=sp.component_id
+       where sy.code is distinct from $2 or c.id is null
+         or ($2='0478' and c.number<>2)`,
       [questionIds,syllabusCode],
     );
     if(Number(result.rows[0]?.invalid??0)!==0)
@@ -681,6 +683,7 @@ export class LiveExamService {
          join syllabi source_syllabus on source_syllabus.id=sp.syllabus_id
          join components source_component on source_component.id=sp.component_id
          where ${readinessCacheFresh}
+           and ${questionVisualIntegritySql('q')}
            and ${cachedReadiness}
            ${filters.length ? `and ${filters.join(' and ')}` : ''}
          union all
@@ -911,7 +914,6 @@ export class LiveExamService {
     this.validateSyllabusSelection(input);
     if(actor.role==='student' && input.limit>100)throw new DomainError('live_student_question_page_limit',400);
     await this.requirePracticeClass(this.pool, actor, input.classId);
-    if ((input.syllabusCode??'9618')==='9618'&&!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
     // The automatic builder only needs the pool size. Avoid source sorting,
     // a LIMIT/OFFSET rowset and a count(*) window over that rowset when the
     // client explicitly opts out of question data (the common filter-change
@@ -975,9 +977,6 @@ export class LiveExamService {
     await this.requirePracticeClass(this.pool, actor, input.classId);
     if(actor.role==='student' && input.questionIds.length>12)throw new DomainError('live_student_practice_invalid',400);
     if (!input.questionIds.length) throw new DomainError('live_question_selection_mismatch', 400);
-    if ((input.syllabusCode??'9618')==='9618'&&!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) {
-      throw new DomainError('live_topic_required', 400);
-    }
 
     const selection=await this.chooseQuestionIds(actor,{
       ...input,
@@ -989,7 +988,7 @@ export class LiveExamService {
     if(selection.ids.length!==input.questionIds.length) throw new DomainError('live_question_selection_mismatch',400);
 
     const expandedIds=await this.expandRequiredDependencies(selection.ids);
-    if((input.syllabusCode??'9618')==='0478')await this.requireQuestionSourceScope(expandedIds,input.syllabusCode??'9618');
+    await this.requireQuestionSourceScope(expandedIds,input.syllabusCode??'9618');
     const [selected,expanded]=await Promise.all([
       this.previewQuestions(selection.ids),
       this.previewQuestions(expandedIds),
@@ -1017,7 +1016,6 @@ export class LiveExamService {
     if(input.playMode==='cards' && actor.role==='student') throw new DomainError('live_card_teacher_only',403);
     this.validateSyllabusSelection(input);
     await this.requirePracticeClass(this.pool, actor, input.classId);
-    if ((input.syllabusCode??'9618')==='9618'&&!input.topicIds.length && !input.subtopicIds.length && !(input.coursebookSectionCodes?.length)) throw new DomainError('live_topic_required', 400);
     if (input.questionIds?.length && input.questionIds.length !== input.questionCount) {
       throw new DomainError('live_question_selection_mismatch', 400);
     }
@@ -1031,7 +1029,7 @@ export class LiveExamService {
     const questionIds = selection.ids;
     const expandedQuestionIds = await this.expandRequiredDependencies(questionIds);
     if (cardMode && expandedQuestionIds.length !== questionIds.length) throw new DomainError('live_card_dependencies_unsupported',409);
-    if((input.syllabusCode??'9618')==='0478')await this.requireQuestionSourceScope(expandedQuestionIds,input.syllabusCode??'9618');
+    await this.requireQuestionSourceScope(expandedQuestionIds,input.syllabusCode??'9618');
     // Bound the total frozen source payload for learner-owned rooms while
     // preserving the existing unrestricted staff/classroom builder.
     if(actor.role==='student' && expandedQuestionIds.length>36)

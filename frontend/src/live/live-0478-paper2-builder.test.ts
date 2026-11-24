@@ -19,10 +19,11 @@ describe('0478 Paper 2 teacher and student live builder',()=>{
     expect(page).toContain("syllabusCode==='0478'?selected0478BookSectionCodes.join(','):''");
     expect(page).toContain('setSelected0478BookSectionCodes([])');
   });
-  it('allows 0478 Paper 2 full pool when no subtopics are ticked',()=>{
-    expect(page).toContain("syllabusCode==='9618'&&!coursebookSectionCodes.length");
-    expect(page).toContain('Belgilanmasa barcha Live-ready Paper 2');
-    expect(page).toContain("||(syllabusCode==='9618'&&!coursebookSectionCodes.length)");
+  it('offers identical whole-pool and chapter scope controls for both syllabuses',()=>{
+    expect(page).toContain('<option value="all">Barcha boblar / savollar</option>');
+    expect(page).toContain('const scopeReady=coursebookSections.length>0&&(selectedBookCodes.length>0');
+    expect(page).not.toContain("syllabusCode==='9618'&&!coursebookSectionCodes.length");
+    expect(page).toContain('Belgilanmasa syllabusdagi barcha Live-ready');
     expect(page).toContain("playMode==='cards'&&selectionMode==='manual'");
   });
   it('keeps syllabus, class and session title in a dedicated wide grid',()=>{
@@ -42,7 +43,8 @@ describe('0478 Paper 2 teacher and student live builder',()=>{
     expect(styles).toContain('grid-template-columns:repeat(2,minmax(0,1fr))');
   });
   it('keeps unrelated IGCSE Chapter Sections visible after selecting one and invalidates stale pool replies',()=>{
-    expect(page).toContain("syllabusCode==='0478'||!selectedChapterNumbers.length");
+    expect(page).toContain('const visibleCoursebookSections=coursebookSections;');
+    expect(page).not.toContain('selectedChapterNumbers.includes(item.chapter_number)');
     expect(page).toContain('const poolRequestEpoch=useRef(0)');
     expect(page).toContain('poolRequestEpoch.current+=1');
     expect(page).toContain('const epoch=++poolRequestEpoch.current');

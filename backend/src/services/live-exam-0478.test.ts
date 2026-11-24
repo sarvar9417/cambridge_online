@@ -14,22 +14,26 @@ const paper2Input={
 };
 
 describe('0478 Paper 2 Live Challenge service gates',()=>{
-  it('accepts the IGCSE pool without requiring a 9618 Hodder chapter',async()=>{
+  it.each(['0478','9618'] as const)('accepts the %s whole pool without requiring a chapter',async(syllabusCode)=>{
     const query=vi.fn(async(sql:string)=>{
       if(sql.includes('from classes c'))return {rowCount:1,rows:[{id:classId,name:'AS'}]};
       if(sql.includes('select candidate.id'))return {rowCount:0,rows:[]};
       throw new Error('Unexpected SQL: '+sql);
     });
     const service=new LiveExamService({query} as unknown as Pool,{} as PgQuestionsRepository);
-    await expect(service.create(teacher,paper2Input)).rejects.toMatchObject({
+    await expect(service.create(teacher,{...paper2Input,syllabusCode,components:syllabusCode==='0478'?[2]:[]})).rejects.toMatchObject({
       code:'live_question_pool_small',status:409,
     });
     const sql=String(query.mock.calls.find(([s])=>String(s).includes('select candidate.id'))?.[0]??'');
-    expect(sql).toContain("source_syllabus.code='0478'");
-    expect(sql).toContain('source_component.number=2');
-    expect(sql).toContain('readiness.target_syllabus_id=sp.syllabus_id');
-    expect(sql).toContain('direct_t.syllabus_id=sp.syllabus_id');
-    expect(sql).not.toContain("source_syllabus.code='9618'");
+    expect(sql).toContain("source_syllabus.code='"+syllabusCode+"'");
+    expect(sql).not.toContain("source_syllabus.code='"+(syllabusCode==='0478'?'9618':'0478')+"'");
+    expect(sql.match(/with recursive source_visual_chain as \(/g)).toHaveLength(2);
+    if(syllabusCode==='0478'){
+      expect(sql).toContain('source_component.number=2');
+      expect(sql).toContain('readiness.target_syllabus_id=sp.syllabus_id');
+    }else{
+      expect(sql).toContain('readiness.target_syllabus_id=readiness_class.syllabus_id');
+    }
   });
 
   it('selects ONLY section-mapped 0478 question LOs for the requested Hodder book section',async()=>{
@@ -83,6 +87,23 @@ describe('0478 Paper 2 Live Challenge service gates',()=>{
     expect(call?.[1]).toContain(2);
   });
 
+  it.each(['0478','9618'] as const)('rejects cross-syllabus prerequisites in %s manual preview',async(syllabusCode)=>{
+    const qid='33333333-3333-4333-8333-333333333333';
+    const dep='44444444-4444-4444-8444-444444444444';
+    const query=vi.fn(async(sql:string)=>{
+      if(sql.includes('from classes c'))return {rowCount:1,rows:[{id:classId,name:'AS'}]};
+      if(sql.includes('select candidate.id'))return {rowCount:1,rows:[{id:qid,total_count:1}]};
+      if(sql.includes('with recursive closure(question_id)'))return {rowCount:2,rows:[
+        {question_id:qid,status:'approved',marks:1,mark_scheme_ready:true,dependencies:[dep]},
+        {question_id:dep,status:'approved',marks:1,mark_scheme_ready:true,dependencies:[]},
+      ]};
+      if(sql.includes('from unnest($1::uuid[]) selected(id)'))return {rowCount:1,rows:[{invalid:1}]};
+      throw new Error('Unexpected SQL: '+sql.slice(0,100));
+    });
+    const service=new LiveExamService({query} as unknown as Pool,{} as PgQuestionsRepository);
+    await expect(service.previewSelection(teacher,{...paper2Input,syllabusCode,components:syllabusCode==='0478'?[2]:[],questionIds:[qid]}))
+      .rejects.toMatchObject({code:'live_question_syllabus_mismatch'});
+  });
   it('rejects Paper 1 or Hodder chapter filters on 0478',async()=>{
     const query=vi.fn(async(sql:string)=>{
       if(sql.includes('from classes c'))return {rowCount:1,rows:[{id:classId,name:'AS'}]};

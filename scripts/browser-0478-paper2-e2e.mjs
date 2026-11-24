@@ -48,6 +48,19 @@ try{
   await teacher.page.waitForSelector('select[aria-label="Cambridge syllabus"]');
   // The full two-column taxonomy is intentionally behind Advanced Setup for staff.
   await teacher.page.locator('.live-setup-switch button:nth-child(2)').click();
+  await teacher.page.waitForSelector('.live-topic-grid[data-syllabus="9618"] fieldset:nth-child(2) label');
+  const asMixed=await teacher.page.evaluate(async()=>{
+    const options=()=>[...document.querySelectorAll('.live-topic-grid[data-syllabus="9618"] fieldset:nth-child(2) label')];
+    const firstCode=options()[0]?.textContent?.trim().split(' ')[0];
+    const otherCode=options().find(label=>label.textContent?.trim().split('.')[0]!==firstCode?.split('.')[0])?.textContent?.trim().split(' ')[0];
+    if(!firstCode||!otherCode)return false;
+    const get=code=>options().find(label=>label.textContent?.trim().startsWith(code+' '))?.querySelector('input');
+    get(firstCode)?.click();await new Promise(requestAnimationFrame);
+    if(!get(otherCode))return false;
+    get(otherCode)?.click();await new Promise(requestAnimationFrame);
+    return !!get(firstCode)?.checked&&!!get(otherCode)?.checked;
+  });
+  await qa.check('9618: selecting a section leaves other chapters visible',asMixed);
   await teacher.page.select('select[aria-label="Cambridge syllabus"]','0478');
   await teacher.page.waitForSelector('.live-topic-grid[data-syllabus="0478"] fieldset:nth-child(2) label');
   for(const width of [1440,1024,768,390]){

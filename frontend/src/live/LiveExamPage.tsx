@@ -335,6 +335,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const [selectedClassId,setSelectedClassId]=useState(()=>classes[0]?.id??'');
   const [syllabusCode,setSyllabusCode]=useState<'9618'|'0478'>('9618');
   const [selected0478BookSectionCodes,setSelected0478BookSectionCodes]=useState<string[]>([]);
+  const [allQuestions,setAllQuestions]=useState(false);
   const [coursebookSectionCodes,setCoursebookSectionCodes]=useState<string[]>([]);
   const [selectionMode,setSelectionMode]=useState<'auto'|'manual'>('auto');
   const [questionOrder,setQuestionOrder]=useState<'fixed'|'shuffled'|'balanced'>('balanced');
@@ -401,17 +402,13 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     item.chapter_number,
     {chapter_number:item.chapter_number,chapter_title:item.chapter_title},
   ])).values()];
-  const selectedChapterNumbers=[...new Set(coursebookSections
-    .filter((item)=>selectedBookCodes.includes(item.section_code))
-    .map((item)=>item.chapter_number))];
-  // Keep every 0478 Section accessible when building a cross-chapter game.
-  // The existing 9618 chapter-focused picker is deliberately unchanged.
-  const visibleCoursebookSections=coursebookSections.filter((item)=>
-    syllabusCode==='0478'||!selectedChapterNumbers.length
-      ||selectedChapterNumbers.includes(item.chapter_number)
-  );
+  // A section filter must never hide other chapters for either syllabus.
+  const visibleCoursebookSections=coursebookSections;
+  const scopeReady=coursebookSections.length>0&&(selectedBookCodes.length>0
+    ||allQuestions||user.role==='student'||setupMode==='advanced');
   const changeSyllabus=(code:'9618'|'0478')=>{
     setSyllabusCode(code);
+    setAllQuestions(false);
     setCoursebookSectionCodes([]);
     setSelected0478BookSectionCodes([]);
     setComponents(code==='0478'?[2]:[]);
@@ -431,6 +428,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   };
   const resetPoolPage=()=>{setPoolPage(0);setQuestionPool([])};
   const chooseQuickChapter=(value:string)=>{
+    setAllQuestions(value==='all');
     const chapter=Number(value);
     const codes=chapter?coursebookSections.filter((item)=>item.chapter_number===chapter).map((item)=>item.section_code):[];
     (syllabusCode==='0478'?setSelected0478BookSectionCodes:setCoursebookSectionCodes)(codes);
@@ -439,12 +437,13 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   const quickChapter=chapters.find((chapter)=>{
     const codes=coursebookSections.filter(item=>item.chapter_number===chapter.chapter_number).map(item=>item.section_code);
     return codes.length>0&&codes.length===selectedBookCodes.length&&codes.every(code=>selectedBookCodes.includes(code));
-  })?.chapter_number??'';
+  })?.chapter_number??(allQuestions?'all':'');
   const chooseSetupMode=(mode:'quick'|'advanced')=>{
     setSetupMode(mode);
     if(mode!=='quick')return;
     // Never carry an invisible multi-chapter or partial Section filter into Quick Start.
     if(quickChapter===''){
+      setAllQuestions(false);
       setCoursebookSectionCodes([]);
       setSelected0478BookSectionCodes([]);
     }
@@ -455,11 +454,13 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     clearManualPool();
   };
   const toggleCoursebookSection=(code:string)=>{
+    setAllQuestions(false);
     const setter=syllabusCode==='0478'?setSelected0478BookSectionCodes:setCoursebookSectionCodes;
     setter(current=>current.includes(code)?current.filter(item=>item!==code):[...current,code]);
     clearManualPool();
   };
   const toggleChapter=(chapterNumber:number)=>{
+    setAllQuestions(false);
     const chapterCodes=coursebookSections.filter((item)=>item.chapter_number===chapterNumber).map((item)=>item.section_code);
     const setter=syllabusCode==='0478'?setSelected0478BookSectionCodes:setCoursebookSectionCodes;
     setter((current)=>{
@@ -528,7 +529,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   };
 
   useEffect(()=>{
-    if(!selectedClassId||(syllabusCode==='9618'&&!coursebookSectionCodes.length)){
+    if(!selectedClassId||!scopeReady){
       setEligibleTotal(null);setEligibleCounts(null);setEligibleLoading(false);setEligibleError('');return;
     }
     let cancelled=false;
@@ -549,7 +550,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         .finally(()=>{if(!cancelled)setEligibleLoading(false)});
     },350);
     return()=>{cancelled=true;window.clearTimeout(timer)};
-  },[selectedClassId,syllabusCode,selected0478BookSectionCodes,coursebookSectionCodes,includeDiagrams,excludeSeen,difficulty,marksMin,marksMax,yearFrom,yearTo,series,components,playMode,cardColumns,eligibleRetryKey]);
+  },[selectedClassId,syllabusCode,selected0478BookSectionCodes,coursebookSectionCodes,includeDiagrams,excludeSeen,difficulty,marksMin,marksMax,yearFrom,yearTo,series,components,playMode,cardColumns,eligibleRetryKey,scopeReady]);
 
   const loadQuestionPool=async(page=poolPage,search=poolSearch)=>{
     const epoch=++poolRequestEpoch.current;
@@ -584,7 +585,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
   };
 
   useEffect(()=>{
-    if(selectionMode!=='manual'||!selectedQuestionIds.length||!selectedClassId||(syllabusCode==='9618'&&!coursebookSectionCodes.length)){
+    if(selectionMode!=='manual'||!selectedQuestionIds.length||!selectedClassId||!scopeReady){
       setSelectionPreview(null);return;
     }
     let cancelled=false;
@@ -605,7 +606,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
     return()=>{cancelled=true;window.clearTimeout(timer)};
   },[
     selectionMode,selectedQuestionIds,selectedClassId,syllabusCode,selected0478BookSectionCodes,coursebookSectionCodes,includeDiagrams,excludeSeen,
-    difficulty,marksMin,marksMax,yearFrom,yearTo,series,components,playMode,cardColumns,
+    difficulty,marksMin,marksMax,yearFrom,yearTo,series,components,playMode,cardColumns,scopeReady,
   ]);
 
   const create=async(event:FormEvent<HTMLFormElement>)=>{
@@ -684,10 +685,11 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         <label>Sinf<select name="classId" required value={selectedClassId} onChange={(event)=>{setSelectedClassId(event.target.value);clearManualPool()}}>{classes.map((item)=><option key={item.id} value={item.id}>{item.name} · {item.level}</option>)}</select></label>
         <label>Sessiya nomi<input name="title" required minLength={3} maxLength={120} placeholder={syllabusCode==='0478'?'0478 Paper 2 Algorithms revision':'Chapter 14 revision'}/></label>
         </div>
-        {syllabusCode==='0478'?<p className="live-create-semantics live-book-help">Hodder IGCSE Coursebook (2021) · Section 2 — Algorithms, Programming and Logic. Chapter yoki Section tanlang. Belgilanmasa barcha Live-ready Paper 2 savollaridan foydalaniladi. 2015–2022 savollari yangi kitob Sectionlariga tasdiqsiz moslashtirilmaydi.</p>:null}
+        <p className="live-create-semantics live-book-help">{syllabusCode==='0478'?'Hodder IGCSE Coursebook (2021) · Paper 2. 2015–2022 savollari yangi kitob Sectionlariga tasdiqsiz moslashtirilmaydi.':'Hodder AS & A Level Coursebook · Papers 1–4.'} {user.role==='student'||setupMode==='advanced'?'Chapter yoki Section tanlang. Belgilanmasa syllabusdagi barcha Live-ready savollardan foydalaniladi.':'Bitta bob yoki barcha Live-ready savollarni tanlang.'}</p>
         {user.role!=='student'&&setupMode==='quick'?<label className="live-quick-chapter">Chapter / Bob
           <select aria-label="Tez boshlash uchun Chapter" value={quickChapter} onChange={event=>chooseQuickChapter(event.target.value)}>
             <option value="">Bobni tanlang</option>
+            <option value="all">Barcha boblar / savollar</option>
             {chapters.map(chapter=><option key={chapter.chapter_number} value={chapter.chapter_number}>{chapter.chapter_number}. {chapter.chapter_title}</option>)}
           </select>
           <small>Tanlangan bobning barcha bo‘limlari olinadi. Alohida Section tanlash uchun «Kengaytirilgan sozlamalar»ni oching.</small>
@@ -703,7 +705,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
             <span>{section.section_code} {section.section_title}</span>
           </label>)}</fieldset>
         </div>
-        {syllabusCode==='0478'&&!coursebookSections.length?<p className="live-warning">IGCSE kitob boblari yuklanmadi. Sahifani yangilang.</p>:null}
+        {!coursebookSections.length&&!loading?<p className="live-warning">Kitob boblari yuklanmadi. Sahifani yangilang.</p>:null}
         <section className="live-builder-filters" hidden={user.role!=='student'&&setupMode==='quick'}>
           <header><div><h3>Advanced filters</h3><p>Source va marks bo‘yicha poolni toraytiring.</p></div></header>
           <div className="live-builder-filter-grid">
@@ -728,7 +730,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
           {selectionMode==='manual'?<>
             <div className="live-pool-toolbar">
               <input aria-label="Savollarni qidirish" value={poolSearch} onChange={(event)=>{const value=event.target.value;setPoolSearch(value);poolRequestEpoch.current+=1;if(poolRequestBusy.current){poolRequestBusy.current=false;setBusy(false)}setQuestionPool([]);setPoolTotal(null);setPoolPage(0)}} onKeyDown={(event)=>{if(event.key==='Enter'){event.preventDefault();void loadQuestionPool(0,poolSearch)}}} placeholder="Ref yoki savol matni bo‘yicha qidirish"/>
-              <button type="button" className="live-secondary" disabled={busy||!selectedClassId||(syllabusCode==='9618'&&!coursebookSectionCodes.length)} onClick={()=>void loadQuestionPool(0,poolSearch)}>Savollarni ko‘rsatish</button>
+              <button type="button" className="live-secondary" disabled={busy||!selectedClassId||!scopeReady} onClick={()=>void loadQuestionPool(0,poolSearch)}>Savollarni ko‘rsatish</button>
             </div>
             <p className="live-selection-summary">{selectionPreview
               ?<><strong>{selectionPreview.requestedCount} tanlangan · {selectionPreview.requestedMarks} ball</strong><span>Dependencies bilan: {selectionPreview.expandedCount} savol · {selectionPreview.expandedMarks} ball{selectionPreview.dependencyCount?` · +${selectionPreview.dependencyCount} majburiy qism`:''}</span></>
@@ -758,7 +760,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         {playMode==='cards'?<label>Ball ustunlari<select aria-label="Kartochka ustunlari soni" value={cardColumns} onChange={(event)=>{setCardColumns(Number(event.target.value));clearManualPool()}}>{[1,2,3,4,5].map((value)=><option key={value} value={value}>{value} ta · 1–{value} ball</option>)}</select><small>Eng ko‘pi bilan 5 ta ustun. Faqat mustaqil Cambridge savollari tanlanadi.</small></label>:null}
         <p className="live-quick-defaults">Standart: 5 daqiqa · O‘qituvchi baholaydi · Anonim reyting</p>
         <details key={setupMode} className="live-advanced-options" open={user.role==='student'||setupMode==='advanced'}><summary>Qo‘shimcha o‘yin qoidalari <span>Vaqt, baholash, xavfsizlik</span></summary><div className="live-advanced-options-content">
-        <label>Tartib<select name="questionOrder" value={questionOrder} onChange={(event)=>setQuestionOrder(event.target.value as 'fixed'|'shuffled'|'balanced')}>{selectionMode==='auto'?<option value="balanced">{syllabusCode==='0478'?'Balanced Random · IGCSE Chapter va Section':'Balanced Random · Chapter va Section bo‘yicha muvozanatli'}</option>:null}<option value="shuffled">Random · tasodifiy</option><option value="fixed">{selectionMode==='manual'?'Tanlangan tartib':'Source tartibi · yili va paper bo‘yicha'}</option></select><small>{questionOrder==='balanced'?(syllabusCode==='0478'?'Tanlangan IGCSE Chapter’lar va Section’lar o‘rtasida muvozanatli tasodifiy tanlanadi; filtr belgilanmasa barcha Paper 2 savollaridan random olinadi.':'Avval tanlangan Chapter’lar o‘rtasida, keyin ularning Section’lari ichida muvozanat saqlanadi. Bitta Section bo‘lsa oddiy random ishlaydi.'):questionOrder==='fixed'?'Automatic rejimda source tartibi, Manual rejimda siz tanlagan tartib saqlanadi.':'Savollar tasodifiy olinadi; bir past paper savolining (a), (b) kabi qismlari birga saqlanadi.'}</small></label>
+        <label>Tartib<select name="questionOrder" value={questionOrder} onChange={(event)=>setQuestionOrder(event.target.value as 'fixed'|'shuffled'|'balanced')}>{selectionMode==='auto'?<option value="balanced">{syllabusCode==='0478'?'Balanced Random · IGCSE Chapter va Section':'Balanced Random · Chapter va Section bo‘yicha muvozanatli'}</option>:null}<option value="shuffled">Random · tasodifiy</option><option value="fixed">{selectionMode==='manual'?'Tanlangan tartib':'Source tartibi · yili va paper bo‘yicha'}</option></select><small>{questionOrder==='balanced'?'Avval tanlangan Chapter’lar, keyin Section’lar ichida muvozanat saqlanadi. Filtr belgilanmasa yoki bitta Section tanlansa oddiy random ishlaydi.':questionOrder==='fixed'?'Automatic rejimda source tartibi, Manual rejimda siz tanlagan tartib saqlanadi.':'Savollar tasodifiy olinadi; bir past paper savolining (a), (b) kabi qismlari birga saqlanadi.'}</small></label>
         <label>Har savol uchun vaqt<select name="timeLimit" defaultValue="5"><option value="">Cheklanmagan</option><option value="2">2 daqiqa</option><option value="3">3 daqiqa</option><option value="5">5 daqiqa</option><option value="10">10 daqiqa</option><option value="15">15 daqiqa</option></select></label>
         {user.role!=='student'?<label className="live-check"><input name="rehearsalMode" type="checkbox" checked={rehearsalMode} onChange={(event)=>setRehearsalMode(event.target.checked)}/><span>Rehearsal / Demo — o‘quvchisiz sinab ko‘rish</span></label>:null}
         {user.role==='student'?<p className="live-create-semantics">Baholash: {practiceMode==='group'?'anonim o‘zaro':'o‘zini'} baholash. O‘qituvchi huquqlari berilmaydi.</p>:rehearsalMode?<p className="live-create-semantics"><strong>Rehearsal:</strong> faqat o‘qituvchi va projector ishlaydi. O‘quvchi qo‘shilmaydi; mastery, assessment evidence va “seen question” yozilmaydi.</p>:<label>Baholash<select name="markingMode" defaultValue="teacher"><option value="teacher">O‘qituvchi baholaydi</option><option value="peer">Anonim o‘zaro baholash</option><option value="self">O‘zini baholash</option></select></label>}
@@ -776,7 +778,7 @@ function LiveLanding({user,classes}:{user:User;classes:ClassItem[]}) {
         {!rehearsalMode?<label className="live-check"><input name="autoCloseWhenAllSubmitted" type="checkbox"/><span>Barcha javob berganda avtomatik yopish</span></label>:null}
         {user.role!=='student'?(playMode==='cards'?<p className="live-create-semantics">Card rejimida o‘qituvchi har bir raund baholarini ko‘rib, kerak bo‘lsa tuzatadi va keyingi kartaga ruxsat beradi.</p>:<label className="live-check"><input name="teacherOverrideEnabled" type="checkbox" defaultChecked/><span>Peer/self bahoni o‘qituvchi tuzata oladi</span></label>):null}
         </div></details>
-        <button disabled={busy||(playMode==='cards'&&selectionMode==='manual'&&(!selectionPreview||selectionPreview.dependencyCount>0||selectionPreview.selected.some((item)=>item.marks>cardColumns||item.marks<1)))||(syllabusCode==='9618'&&!coursebookSectionCodes.length)||!classes.length||(selectionMode==='manual'&&(!selectedQuestionIds.length||(user.role==='student'&&selectedQuestionIds.length>12)))||(selectionMode==='auto'&&(eligibleLoading||eligibleTotal===null||eligibleTotal===0))}>{busy?'Yaratilmoqda…':'Xonani yaratish'}</button>
+        <button disabled={busy||(playMode==='cards'&&selectionMode==='manual'&&(!selectionPreview||selectionPreview.dependencyCount>0||selectionPreview.selected.some((item)=>item.marks>cardColumns||item.marks<1)))||!scopeReady||!classes.length||(selectionMode==='manual'&&(!selectedQuestionIds.length||(user.role==='student'&&selectedQuestionIds.length>12)))||(selectionMode==='auto'&&(eligibleLoading||eligibleTotal===null||eligibleTotal===0))}>{busy?'Yaratilmoqda…':'Xonani yaratish'}</button>
         <small className="live-create-semantics">Draft saqlanmaydi: “Xonani yaratish” darhol lobby ochadi. {playMode==='cards'?'Card rejimida o‘qituvchi kartani tanlagach savol hammaga ochiladi.':'Random rejimida Start bosilgach savol ochiladi.'}</small>
         {!classes.length?<small className="live-warning">Mashq yaratish uchun faol sinfga biriktirilgan bo‘lishingiz kerak.</small>:null}
       </aside>

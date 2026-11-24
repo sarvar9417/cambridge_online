@@ -86,7 +86,7 @@ describe('LiveExamService source fidelity', () => {
     const selectionSql = selectionCall?.[0];
     expect(selectionSql).toContain('join canonical_mark_schemes ms on ms.question_id=q.id');
     expect(selectionSql).not.toContain('join mark_schemes ms on ms.question_id=q.id');
-    expect(selectionSql).toContain('with recursive source_visual_chain');
+    expect((selectionSql??'').match(/with recursive source_visual_chain as \(/g)).toHaveLength(2);
     expect(selectionSql).toContain("coalesce(qa.svg_markup,'')");
     expect(selectionSql).toContain("qa.kind in ('diagram','image')");
 
@@ -136,6 +136,7 @@ describe('LiveExamService source fidelity', () => {
       if (sql.includes('with recursive closure(question_id)')) return { rowCount:1,rows:[{
         question_id:'q1',status:'approved',marks:1,mark_scheme_ready:true,dependencies:[],
       }] };
+      if (sql.includes('from unnest($1::uuid[]) selected(id)')) return { rowCount:1,rows:[{invalid:0}] };
       if (sql.includes('from canonical_mark_schemes ms')) return { rowCount:1,rows:[{ scheme:{ id:'ms1',schemeType:'all_required',maxMarks:1,guidanceMd:null,levels:[],points:[{ id:'p1',code:'M1',text:'One mark',marks:1,accept:[],reject:[],requires:[],isBod:false,groupId:null }],groups:[] } }] };
       throw new Error(`unexpected query: ${sql}`);
     });
