@@ -70,6 +70,22 @@ export function CorpusPage() {
   },[finding,syllabus,page,revision]);
   const item=review[Math.min(reviewIndex,Math.max(0,review.length-1))];
   const blocking=Boolean(item?.findings.some(f=>f.severity==='error'));
+  const needsTaxonomy=Boolean(item?.syllabus_code==='0478'&&!item.findings.length&&item.notes?.includes('taxonomy_confidence'));
+  const [taxonomy,setTaxonomy]=useState<{current:{current_lo_id:string;current_topic_code:string;current_topic_title:string;current_lo_text:string;mark_scheme:string};options:Array<{id:string;code:string;text:string;topic_code:string;topic_title:string}>}|null>(null);
+  const [chosenLo,setChosenLo]=useState('');
+  const [taxonomyError,setTaxonomyError]=useState('');
+  const [taxonomyItem,setTaxonomyItem]=useState('');
+  useEffect(()=>{
+    let cancelled=false;
+    setTaxonomy(null);setChosenLo('');setTaxonomyError('');setTaxonomyItem('');
+    if(!item||!needsTaxonomy||loading)return;
+    const id=item.id;
+    api<NonNullable<typeof taxonomy>>(`/ingestion/review/${id}/taxonomy`).then(result=>{
+      if(cancelled)return;
+      setTaxonomy(result);setChosenLo(result.current.current_lo_id);setTaxonomyItem(id);
+    }).catch(cause=>{if(!cancelled)setTaxonomyError(cause instanceof Error?cause.message:'Mavzu yuklanmadi.')});
+    return()=>{cancelled=true};
+  },[item?.id,needsTaxonomy,loading]);
   const mutate=useCallback(async(action:()=>Promise<unknown>)=>{
     if(lock.current)return;
     lock.current=true;setBusy(true);setError(null);
@@ -79,6 +95,12 @@ export function CorpusPage() {
   },[]);
   const decide=async(id:string,decision:'approved'|'rejected')=>{
     if(loading||busy||!item||item.id!==id||(decision==='approved'&&blocking))return;
+    if(decision==='approved'&&needsTaxonomy){
+      if(!taxonomy||taxonomyItem!==id||!chosenLo)return;
+      if(!window.confirm('Savol, Mark Scheme va tanlangan learning objective mosligini tasdiqlaysizmi?'))return;
+      await mutate(()=>api(`/ingestion/review/${id}/taxonomy`,{method:'POST',body:JSON.stringify({loId:chosenLo,expectedLoId:taxonomy.current.current_lo_id})}));
+      return;
+    }
     if(decision==='rejected'&&!window.confirm('Savolni rad etishni tasdiqlaysizmi?'))return;
     await mutate(()=>api(`/ingestion/review/${id}/${decision}`,{method:'POST'}));
   };
@@ -184,6 +206,20 @@ export function CorpusPage() {
                   <p className="cp-stem">{item.stem_md}</p>
                 )}
 
+                {needsTaxonomy?<section className="cp-taxonomy" aria-label="Syllabus tasnifi">
+                  <h3>Syllabus tasnifi</h3>
+                  {taxonomyError?<p className="cp-error">{taxonomyError}</p>:taxonomy&&taxonomyItem===item.id?<>
+                    <p>Hozirgi mavzu: <strong>{taxonomy.current.current_topic_code} · {taxonomy.current.current_topic_title}</strong></p>
+                    <p>{taxonomy.current.current_lo_text}</p>
+                    <details open><summary>Mark Scheme</summary><p className="cp-stem">{taxonomy.current.mark_scheme}</p></details>
+                    <label>To‘g‘ri learning objective
+                      <select value={chosenLo} disabled={busy} onChange={e=>setChosenLo(e.target.value)}>
+                        {taxonomy.options.map(lo=><option key={lo.id} value={lo.id}>{lo.topic_code} · {lo.topic_title} — {lo.code} · {lo.text}</option>)}
+                      </select>
+                    </label>
+                    <p className="cp-hint">{taxonomy.options.find(lo=>lo.id===chosenLo)?.text}</p>
+                  </>:<p role="status">Syllabus va Mark Scheme yuklanmoqda…</p>}
+                </section>:null}
                 {item.findings.map((f) => (
                   <span className={`cp-finding cp-finding--${f.severity}`} key={f.id ?? `${f.code}-${f.message}`}>
                     {f.code} · {f.message}
@@ -196,7 +232,7 @@ export function CorpusPage() {
                     onClick={() => setReviewIndex((value) => Math.max(0, value - 1))}
                   >←</button>
                   <button className="cp-secondary" disabled={busy||item.structured} title={item.structured?'Strukturali savol asl manbadan tiklanishi kerak':undefined} onClick={() => setEditing(true)}>Tahrirlash</button>
-                  <button disabled={busy||blocking||editing} onClick={() => decide(item.id, 'approved')}>Tasdiqlash</button>
+                  <button disabled={busy||blocking||editing||(needsTaxonomy&&(!taxonomy||taxonomyItem!==item.id||!chosenLo))} onClick={() => decide(item.id, 'approved')}>Tasdiqlash</button>
                   <button className="cp-danger" disabled={busy||editing} onClick={() => decide(item.id, 'rejected')}>Rad etish</button>
                   <button
                     className="cp-secondary" disabled={busy||editing||reviewIndex >= review.length - 1}

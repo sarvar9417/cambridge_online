@@ -28,3 +28,5 @@ describe('ingestion review workflow',()=>{
 });
 
 it('blocks approval when unresolved source errors remain',async()=>{const query=vi.fn().mockResolvedValueOnce({}).mockResolvedValueOnce({rowCount:1,rows:[{id:'q',status:'needs_review',blocking_error:true}]}).mockResolvedValueOnce({});const pool={connect:vi.fn().mockResolvedValue({query,release:vi.fn()})}as unknown as Pool;await expect(new IngestionService(pool).decide(owner,'q','approved')).rejects.toMatchObject({status:409});expect(query.mock.calls.some(call=>String(call[0]).includes('update questions set status'))).toBe(false)});
+
+it('rejects taxonomy approval when selected objective is stale or belongs to another syllabus',async()=>{const query=vi.fn().mockResolvedValueOnce({}).mockResolvedValueOnce({rowCount:0,rows:[]}).mockResolvedValueOnce({});const pool={connect:vi.fn().mockResolvedValue({query,release:vi.fn()})}as unknown as Pool;await expect(new IngestionService(pool).approveTaxonomy(owner,'q',{loId:'foreign',expectedLoId:'old'})).rejects.toMatchObject({status:409});expect(query.mock.calls[1]![0]).toContain('t.syllabus_id=p.syllabus_id');expect(query.mock.calls[2]![0]).toBe('rollback')});
