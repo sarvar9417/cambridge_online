@@ -405,19 +405,18 @@ async function assertInteractiveGames(browser:Browser,base:string){
   const checkTileContrast=async(page:Page,label:string)=>{
     const failures=await page.evaluate(()=>{
       const tiles=Array.from(document.querySelectorAll('.ig-game-tile'));
-      const luminance=(color:string)=>{
-        const rgb=color.match(/[\d.]+/g)?.slice(0,3).map(Number)??[];
-        if(rgb.length!==3)return NaN;
-        const linear=rgb.map(value=>{const c=value/255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;});
-        return .2126*linear[0]!+.7152*linear[1]!+.0722*linear[2]!;
-      };
       return tiles.flatMap(tile=>{
         const style=getComputedStyle(tile);
-        const bg=luminance(style.backgroundColor);
+        const background=style.backgroundColor;
+        const bgChannels=background.match(/[\d.]+/g)?.slice(0,3).map(Number)??[];
+        const bgLinear=bgChannels.map(value=>{const c=value/255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;});
+        const bg=bgChannels.length===3?.2126*bgLinear[0]!+.7152*bgLinear[1]!+.0722*bgLinear[2]!:NaN;
         const reasons:string[]=[];
         if(!Number.isFinite(bg)||bg>.14||style.backgroundImage!=='none')reasons.push('non-neon or unknown surface '+style.backgroundColor+' '+style.backgroundImage);
         for(const node of tile.querySelectorAll('strong, small, .ig-game-number')){
-          const fg=luminance(getComputedStyle(node).color);
+          const fgChannels=getComputedStyle(node).color.match(/[\d.]+/g)?.slice(0,3).map(Number)??[];
+          const fgLinear=fgChannels.map(value=>{const c=value/255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;});
+          const fg=fgChannels.length===3?.2126*fgLinear[0]!+.7152*fgLinear[1]!+.0722*fgLinear[2]!:NaN;
           const ratio=(Math.max(fg,bg)+.05)/(Math.min(fg,bg)+.05);
           if(!Number.isFinite(ratio)||ratio<4.5)reasons.push((node.textContent??'')+' contrast '+ratio.toFixed(2));
         }
