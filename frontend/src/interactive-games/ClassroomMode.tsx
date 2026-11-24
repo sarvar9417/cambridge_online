@@ -64,7 +64,7 @@ export function ClassroomMode({ pairs, isFullscreen, onToggleFullscreen, onNextR
       <div>
         <span className="ig-eyebrow">TEACHER-LED · PROJECTOR MODE</span>
         <h2>Classroom Mode</h2>
-        <p>Reveal the definition, ask the class, and award team points manually. No grades or student results are saved.</p>
+        <p>Team points · Teacher-led practice</p>
       </div>
       <div className="ig-classroom-header-actions">
         <button type="button" onClick={onToggleFullscreen}>
