@@ -32,7 +32,37 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
   } else {
     for (const [i, student] of students.entries()) {
       await markVisibleAnswer(qa, student.page, '.live-review-card', `QA ${mode} review ${i + 1}`);
-      await qa.waitText(student.page, i===students.length?'SAVOL NATIJASI':'Baholash yuborildi');
+      try {
+        await qa.waitText(student.page, i===students.length?'SAVOL NATIJASI':'Baholash yuborildi');
+      } catch (error) {
+        // Log only state, not learner answers, credentials or PINs.
+        const [staffState, learnerState] = await Promise.all([
+          snapshot(teacher.page, id), snapshot(student.page, id),
+        ]);
+        const describe = state => ({
+          status: state.session.status,
+          markingMode: state.session.markingMode,
+          version: state.session.version,
+          participantCount: state.session.participantCount,
+          reviewCount: state.session.reviewCount,
+          reviewedCount: state.session.reviewedCount,
+          reviewStatus: state.review?.status ?? null,
+          hasOwnAnswer: Boolean(state.ownAnswer),
+          score: state.ownAnswer?.score ?? null,
+        });
+        const dom = await student.page.evaluate(() => ({
+          route: location.hash.split('?')[0],
+          resultVisible: Boolean(document.querySelector('.live-student-result')),
+          reviewVisible: Boolean(document.querySelector('.live-review-card')),
+          waitingVisible: Boolean(document.querySelector('.live-wait')),
+          connectionWarning: Boolean(document.querySelector('.live-connection-warning')),
+          hasError: Boolean(document.querySelector('.live-error')),
+        }));
+        console.error('Live review transition diagnostic', JSON.stringify({
+          mode, staff: describe(staffState), learner: describe(learnerState), dom,
+        }));
+        throw error;
+      }
     }
   }
   // Automatic release happens when the final review is submitted. Older
