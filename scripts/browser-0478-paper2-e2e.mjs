@@ -167,6 +167,21 @@ try{
   },{classId,questionId:eligibility.data.find(item=>item.displayRef===ref)?.id});
   await qa.check('0478: manual injection into 9618 Chapter 1 is rejected',wrong!=='accepted',{wrong});
 
+  // Exercise the very same shared marking lifecycle used by the 9618 browser
+  // helpers, using authentic syllabus-scoped QA fixtures for each mode.
+  const student2=await qa.login('student02',process.env.SEED_STUDENT_PASSWORD,'0478 second student');
+  for(const mode of ['self','peer']){
+    const participants=mode==='peer'?[student,student2]:[student];
+    const room=await createRound(qa,teacher,participants,{
+      classId,mode,title:`0478 ${mode} parity ${Date.now()}`,
+      syllabusCode:'0478',igcseBookSectionCode:'8.1',displayRef:ref,excludeSeen:false,questionCount:1,
+    });
+    const report=await finishRound(qa,teacher,participants,room,mode);
+    await qa.check(`0478 ${mode}: same lifecycle and complete personal reports`,
+      report.session.status==='finished'&&report.report.rows.length===participants.length
+      &&report.report.rows.every(row=>row.marks===2&&row.score===2));
+  }
+
   const pageErrors=qa.report.pageErrors??[];
   await qa.check('0478: browser error-free',pageErrors.length===0,{pageErrors});
 }finally{

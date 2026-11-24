@@ -159,8 +159,14 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
     for (const id of studentIds) {
       await client.query('insert into enrollments (class_id,student_id) values ($1,$2)',[classId,id]);
     }
+    const componentId=(await client.query<{id:string}>(
+      'insert into components(syllabus_id,number) values($1,1) returning id',[syllabusId],
+    )).rows[0]!.id;
+    const paperId=(await client.query<{id:string}>(
+      'insert into source_papers(syllabus_id,component_id) values($1,$2) returning id',[syllabusId,componentId],
+    )).rows[0]!.id;
     questionId = (await client.query<{id:string}>(
-      'insert into questions default values returning id',
+      'insert into questions(source_paper_id) values($1) returning id',[paperId],
     )).rows[0]!.id;
     await client.query(
       'insert into question_learning_objectives (question_id,lo_id,confidence) values ($1,$2,1)',
@@ -190,6 +196,41 @@ describeLive('LiveExamService real PostgreSQL lifecycle', () => {
       client.release();
     }
     if (pool) await pool.end();
+  });
+
+  it('enforces the same source boundary in both syllabus pools and refuses 0478 Paper 1',async()=>{
+    const other=(await client.query<{id:string}>("insert into syllabi(code) values('0478') returning id")).rows[0]!.id;
+    const ids:string[]=[];
+    try {
+      for (const paper of [1,2]) {
+        const component=(await client.query<{id:string}>(
+          'insert into components(syllabus_id,number) values($1,$2) returning id',[other,paper],
+        )).rows[0]!.id;
+        const source=(await client.query<{id:string}>(
+          'insert into source_papers(syllabus_id,component_id) values($1,$2) returning id',[other,component],
+        )).rows[0]!.id;
+        ids.push((await client.query<{id:string}>(
+          'insert into questions(source_paper_id) values($1) returning id',[source],
+        )).rows[0]!.id);
+      }
+      const scope=service as unknown as {
+        requireQuestionSourceScope(ids:string[],syllabus:'0478'|'9618'):Promise<void>
+      };
+      await expect(scope.requireQuestionSourceScope([questionId],'9618')).resolves.toBeUndefined();
+      await expect(scope.requireQuestionSourceScope([ids[1]!],'0478')).resolves.toBeUndefined();
+      for (const [syllabus,questions] of [
+        ['9618',[questionId,ids[1]!]],
+        ['0478',[ids[1]!,questionId]],
+        ['0478',[ids[0]!]],
+        ['9618',['00000000-0000-4000-8000-000000000000']],
+      ] as const) {
+        await expect(scope.requireQuestionSourceScope([...questions],syllabus))
+          .rejects.toMatchObject({code:'live_question_syllabus_mismatch',status:409});
+      }
+    } finally {
+      if(ids.length)await client.query('delete from questions where id=any($1::uuid[])',[ids]);
+      await client.query('delete from syllabi where id=$1',[other]);
+    }
   });
 
   it('opens teacher-selected card for everyone and rejects student claims',async()=>{

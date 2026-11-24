@@ -74,8 +74,20 @@ CREATE TABLE enrollments (
   PRIMARY KEY (class_id, student_id)
 );
 
+-- Minimal source tuple for shared Live Challenge syllabus/dependency isolation.
+CREATE TABLE components (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  syllabus_id uuid NOT NULL REFERENCES syllabi ON DELETE CASCADE,
+  number int NOT NULL
+);
+CREATE TABLE source_papers (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  syllabus_id uuid NOT NULL REFERENCES syllabi ON DELETE CASCADE,
+  component_id uuid NOT NULL REFERENCES components ON DELETE CASCADE
+);
 CREATE TABLE questions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_paper_id uuid REFERENCES source_papers ON DELETE SET NULL,
   display_ref text NOT NULL DEFAULT '',
   sort_order int NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now()
