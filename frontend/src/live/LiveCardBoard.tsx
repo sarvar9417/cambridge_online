@@ -64,10 +64,10 @@ export function LiveCardBoard({ snapshot, refresh, interactive = false }: LiveCa
       </div>
       <span className="live-card-count">{remaining} / {cards.length} karta qoldi</span>
     </header>
-    <div className="live-card-scroll">
+    <div className="live-card-scroll" role="region" aria-label="Ball ustunlari" tabIndex={0}>
       <div className="live-card-columns" style={{
-        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-        minWidth: 0,
+        gridTemplateColumns: `repeat(${columns}, minmax(104px, 1fr))`,
+        minWidth: columns * 116,
       }}>
         {Array.from({ length: columns }, (_, index) => index + 1).map((points) => {
           const group = cards.filter((card) => card.marks === points).sort((a,b) => a.id.localeCompare(b.id));

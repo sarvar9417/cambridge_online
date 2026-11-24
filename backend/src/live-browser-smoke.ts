@@ -168,7 +168,7 @@ const gameCatalog = {
   ],
 };
 
-async function installApi(page:Page,actor:ActorKey,status:SnapshotStatus='question_open',rehearsal=false){
+async function installApi(page:Page,actor:ActorKey,status:SnapshotStatus='question_open',rehearsal=false,cardMode=false){
   await page.setRequestInterception(true);
   page.on('request',(request:HTTPRequest)=>{
     const url=new URL(request.url());
@@ -212,7 +212,11 @@ async function installApi(page:Page,actor:ActorKey,status:SnapshotStatus='questi
       void json(request,{data:{courseCode:'9618',chapterNo,sectionCode,contentStatus:'needs_review',pairs,source:'Browser acceptance glossary',assessed:false}});
       return;
     }
-    if(path===`/live-exams/${SESSION_ID}`||path===`/live-exams/${SESSION_ID}/projector`){void json(request,snapshot(actor,status,rehearsal));return;}
+    if(path===`/live-exams/${SESSION_ID}`||path===`/live-exams/${SESSION_ID}/projector`){
+      const data=snapshot(actor,status,rehearsal);
+      void json(request,cardMode?{...data,session:{...data.session,settings:{...data.session.settings,playMode:'cards',cardColumns:5}},cards:Array.from({length:10},(_,i)=>({id:`card-${i}`,marks:i%5+1,used:i===0}))}:data);
+      return;
+    }
     if(path===`/live-exams/${SESSION_ID}/events`){void json(request,{sessionId:SESSION_ID,currentVersion:7,changed:false,events:[]});return;}
     if(path===`/live-exams/${SESSION_ID}/heartbeat`){void json(request,{serverNow:now});return;}
     void json(request,{data:[]});
@@ -295,6 +299,10 @@ async function assertJoinQrFlow(browser:Browser,base:string){
     width:svg.getBoundingClientRect().width,
   }));
   if(projectorQr.modules<500||projectorQr.width<180)throw new Error(`projector lobby QR failure: ${JSON.stringify(projectorQr)}`);
+  const pin=await projector.$eval('.live-projector-lobby > div > strong',node=>({
+    text:node.textContent,font:parseFloat(getComputedStyle(node).fontSize),color:getComputedStyle(node).color,
+  }));
+  if(pin.text!=='654321'||pin.font<90||pin.color!=='rgb(245, 247, 255)')throw Error('Projector PIN is not large/high contrast: '+JSON.stringify(pin));
 
   const studentContext=await browser.createBrowserContext();
   const student=await studentContext.newPage();
@@ -360,6 +368,35 @@ async function assertRehearsalUi(browser:Browser,base:string){
   await assertAxe(projector,'projector rehearsal lobby');
   await assertAxe(active,'teacher active rehearsal');
   await Promise.all([teacherContext.close(),projectorContext.close(),activeContext.close()]);
+}
+
+async function assertLiveCardVisuals(browser:Browser,base:string){
+  const context=await browser.createBrowserContext();
+  const page=await context.newPage();
+  try{
+    await page.setViewport({width:390,height:844});
+    await installApi(page,'teacher','lobby',false,true);
+    await page.goto(`${base}/#oqitish/live?id=${SESSION_ID}`,{waitUntil:'networkidle0',timeout:30000});
+    await page.waitForSelector('.live-card-tile.is-used');
+    const layout=await page.evaluate(()=>{
+      const scroller=document.querySelector<HTMLElement>('.live-card-scroll')!;
+      const tiles=Array.from(document.querySelectorAll<HTMLButtonElement>('.live-card-tile'));
+      const used=tiles.find(tile=>tile.classList.contains('is-used'))!;
+      const available=tiles.find(tile=>!tile.disabled)!;
+      return {viewportOverflow:document.documentElement.scrollWidth-innerWidth,
+        localScroll:scroller.scrollWidth>scroller.clientWidth,keyboard:scroller.tabIndex===0,
+        count:tiles.length,usedDisabled:used.disabled,usedOpacity:getComputedStyle(used).opacity,
+        usedBackground:getComputedStyle(used).backgroundColor,
+        availableBackground:available?getComputedStyle(available).backgroundColor:null,
+        availableWidth:available?.getBoundingClientRect().width??0};
+    });
+    if(layout.viewportOverflow>2||!layout.localScroll||!layout.keyboard||layout.count!==10||
+      !layout.usedDisabled||layout.usedOpacity!=='1'||layout.usedBackground!=='rgb(27, 66, 60)'||
+      layout.availableBackground!=='rgb(39, 52, 97)'||layout.availableWidth<85){
+      throw Error('Live Card Mode visual regression: '+JSON.stringify(layout));
+    }
+    await assertAxe(page,'Live Card Mode mobile');
+  }finally{await context.close();}
 }
 
 async function assertReducedMotion(browser:Browser,base:string){
@@ -812,7 +849,22 @@ try{
     ||mobileA11y.saveRole!=='status'||mobileA11y.saveLive!=='polite'){
     throw new Error(`mobile student accessibility failure: ${JSON.stringify(mobileA11y)}`);
   }
-  for(const [index,surface] of surfaces.entries())await assertAxe(surface.page,`live surface ${index}`);
+  for(const [index,surface] of surfaces.entries()){
+    const visual=await surface.page.evaluate(()=>{
+      const card=document.querySelector<HTMLElement>('.live-question-card')!;
+      const projector=document.querySelector<HTMLElement>('.live-projector-overlay');
+      const header=projector?.querySelector('header');
+      const main=projector?.querySelector('main');
+      return {cardWidth:card.getBoundingClientRect().width,
+        progress:document.querySelectorAll('.live-neon-arena-progress[role="progressbar"]').length,
+        projectorOverlap:header&&main?header.getBoundingClientRect().bottom-main.getBoundingClientRect().top:0,
+        projectorOverflow:projector?projector.scrollWidth-projector.clientWidth:0};
+    });
+    if(visual.cardWidth>surface.page.viewport()!.width||visual.progress!==1||visual.projectorOverlap>2||visual.projectorOverflow>2)
+      throw Error('Live visual surface '+index+': '+JSON.stringify(visual));
+    await assertAxe(surface.page,`live surface ${index}`);
+  }
+  await assertLiveCardVisuals(browser,base);
   await assertReducedMotion(browser,base);
   await assertInteractiveGames(browser,base);
   await assertJoinQrFlow(browser,base);

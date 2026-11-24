@@ -111,7 +111,7 @@
 .live-projector-overlay.live-neon-arena .live-rehearsal-projector>div>span{color:#9beaff}
 .live-projector-overlay.live-neon-arena .live-rehearsal-projector>div>p{color:var(--projector-muted)}
 .live-projector-overlay.live-neon-arena .live-projector-session-info time.is-urgent{color:#ffb5c1!important}
-.live-projector-overlay.live-neon-arena .live-projector-ceremony{display:grid;gap:18px;min-width:0}
+.live-projector-overlay.live-neon-arena .live-projector-ceremony{display:grid;gap:18px;min-width:0;max-height:none;overflow:visible}
 .live-projector-overlay.live-neon-arena .live-question-card{overflow:visible}
 .live-projector-overlay.live-neon-arena .live-question-card>header{border-radius:var(--radius-xl) var(--radius-xl) 0 0}
 .live-projector-overlay.live-neon-arena .live-neon-projector-sound{min-height:44px}
@@ -143,7 +143,7 @@
   .live-card-board .live-card-column{padding:4px}
   .live-card-board .live-card-tile{flex-direction:column;min-height:76px;padding:6px 2px;gap:2px}
   .live-card-board .live-card-tile>strong{font-size:20px}
-  .live-card-board .live-card-tile>small{font-size:9px}
+  .live-card-board .live-card-tile>small{font-size:12px}
   .live-card-board .live-card-tile>span{font-size:10px}
   .live-neon-arena-strip{gap:7px;padding:10px}
   .live-neon-arena-strip>span,.live-neon-arena-strip>small{font-size:10px;letter-spacing:.04em}
@@ -155,3 +155,9 @@
   .live-card-board .live-card-tile:not(:disabled):hover{transform:none}
   .live-neon-arena-strip .live-neon-arena-progress>i{transition:none}
 }
+
+.live-card-board .live-card-scroll:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:8px}
+.live-card-board .live-card-scroll{scrollbar-width:auto;scrollbar-color:var(--border-strong) var(--surface-soft)}
+.live-card-board .live-card-column>header strong{font-size:clamp(15px,2.2vw,22px)}
+.live-student-result .live-neon-final>div:nth-child(2){min-width:0;overflow-wrap:anywhere}
+.live-student-result .live-neon-final{width:100%;box-sizing:border-box;padding:clamp(14px,3vw,26px)}
