@@ -81,7 +81,7 @@ export async function finishRound(qa, teacher, students, id, mode, beforeFinish)
     for (const [i, student] of students.entries()) {
       await markVisibleAnswer(qa, student.page, '.live-review-card', `QA ${mode} review ${i + 1}`);
       try {
-        if (i===students.length) {
+        if (i===students.length-1) {
           await waitForLearnerResult(student.page);
         } else {
           await waitForVisibleReviewState(student.page,'.live-review-card h2','Baholash yuborildi');
