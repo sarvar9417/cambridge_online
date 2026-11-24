@@ -125,3 +125,7 @@
 .lq-neon.is-playing .lq-guest-question .lq-option:hover:not(:disabled){background:linear-gradient(145deg,var(--choice-tint),#18264b);border-color:var(--choice-glow)}
 @media(max-width:640px){.ig-neon .ig-quiz-question-frame{grid-template-columns:minmax(0,1fr) 76px;padding:14px;gap:10px}.ig-neon .ig-quiz-question-frame .ig-question{font-size:clamp(17px,5vw,24px)}}
 @media(prefers-reduced-motion:reduce){.ig-neon .ig-workspace .ig-choice-card.is-correct,.lq-neon.is-playing .lq-option.is-answer{animation:none!important}}
+
+.ig-neon:is(.is-arena,:fullscreen) .ig-scope-count{display:none}
+.ig-neon .ig-workspace :is(.ig-match-actions,.ig-box-actions,.ig-deck-controls,.ig-card-controls,.ig-anagram-form,.ig-answer-feedback,.ig-wheel-controls,.ig-wheel-settings,.ig-wheel-caption,.ig-find-status){color:#edf2ff}
+.ig-neon .ig-workspace :is(.ig-wheel-settings label,.ig-wheel-switch button,.ig-wheel-settings select,.ig-wheel-caption p,.ig-wheel-result .ig-eyebrow,.ig-dealt-card .ig-eyebrow,.ig-answer-review summary,.ig-start-panel p){color:#e6edff}

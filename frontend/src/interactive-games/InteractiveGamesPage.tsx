@@ -353,7 +353,7 @@ export function InteractiveGamesPage({ isTeacher, initialCourseCode = '9618', st
     {!isTeacher&&<StudentLiveQuizLinks />}
     <div className="ig-session-bar" role="group" aria-label="Game session controls">
       {showClock && !liveQuizOpen && <span className={'ig-clock' + (timeExpired ? ' is-expired' : '')} role="timer">◷ {timeLimit > 0 ? 'Remaining ' : 'Elapsed '}{time}</span>}
-      <span className="ig-session-name"><span className="ig-arena-dot" aria-hidden="true"/> Cambridge {courseCode} · Games</span>
+      <span className="ig-session-name"><span className="ig-arena-dot" aria-hidden="true"/> Cambridge {courseCode} · Games <span className="ig-scope-count">· {scopes.length} selections</span></span>
       {(ready||arena) && <button type="button" className="ig-arena-toggle" aria-pressed={arena} onClick={()=>setArena(value=>!value)}>{arena?'Exit Arena':'Enter Arena'}</button>}
       {isTeacher && <button type="button" className="ig-classroom-toggle" aria-pressed={classroomMode}
         disabled={!ready} onClick={() => { setLiveQuizOpen(false); setClassroomMode((value) => !value); setRound(0); resetGame(); }}>
@@ -592,7 +592,7 @@ export function InteractiveGamesPage({ isTeacher, initialCourseCode = '9618', st
             <summary>Show cards ({pairs.length})</summary>
             <ol>{pairs.map((pair) => <li key={pair.id}><strong>{pair.term}</strong><div>{pair.definition}</div></li>)}</ol>
           </details>}
-          <p className="ig-result-disclaimer">Practice results only · Not official grades or verified mastery.</p>
+          <p className="ig-result-disclaimer">Practice feedback only · Not official grades or verified mastery.</p>
           {!isTeacher && currentMode !== 'concept-compare' && <div className="ig-practice-save">
             <button type="button" disabled={practiceSaveState === 'saving' || practiceSaveState === 'saved'}
               onClick={() => void savePractice()}>
