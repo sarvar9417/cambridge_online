@@ -5,6 +5,7 @@ import { forgetQuizGuest, LIVE_QUIZ_AVATARS, quizGuestRequest, readQuizGuest,
 import { LiveQuizReportView } from './LiveQuizReportView';
 import { countdownSeconds, reviewCountdownSeconds } from './LiveQuizHost';
 import './live-quiz.css';
+import './neon-arena.css';
 
 export function LiveQuizGuestPage({pin}:{pin:string}){
   const [name,setName]=useState('');
@@ -162,9 +163,9 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
   const progressValue=isTreasure?Math.min(progressMax,gameRemaining):
     Math.max(0,Math.min(progressMax,(question?.index??-1)+1));
   const pending=snapshot?.pendingReward;
-  return <main className="lq-guest" aria-label="Join Cambridge Live Quiz">
+  return <main className={'lq-guest lq-neon'+(snapshot?' is-playing':'')} aria-label="Join Cambridge Live Quiz">
     <header className="lq-guest-header"><span>CAMBRIDGE {snapshot?.courseCode ?? lobby?.courseCode ?? ''} / LIVE QUIZ</span>
-      <h1>{(snapshot?.mode??lobby?.mode)==='treasure'?'Your treasure hunt starts here.':'Think fast. Learn together.'}</h1>
+      <h1>{(snapshot?.mode??lobby?.mode)==='treasure'?'Treasure Quest':'Live Quiz'}</h1>
       <p>{/^[0-9]{6}$/.test(pin)?<>GAME PIN <strong>{pin}</strong>{' '}
         <a className="lq-change-pin" href="#/play">Change code</a></>:
         'Enter the six-digit PIN your teacher shows on the board.'}</p></header>
@@ -242,7 +243,7 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
           aria-label={isTreasure?'Game time remaining':'Question progress'}
           aria-valuenow={progressValue} aria-valuemin={0} aria-valuemax={progressMax}>
           <span style={{width:`${progressValue/progressMax*100}%`}}/></div>
-        <h2>{question.prompt}</h2><small className="lq-source">{question.sourceContext}</small>
+        <h2>{question.prompt}</h2>
         <div className="lq-options">{question.options.map((option,index)=><button key={index} type="button"
           className={'lq-option lq-option-'+index+(selected===index?' is-selected':'')}
           disabled={selected!==null||(!isTreasure&&timeLeft<=0)||waitRemaining>0||sending} onClick={()=>{void answer(index);}}>
@@ -251,7 +252,7 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
         {waitRemaining>0?<p className="lq-sent" role="status">⏳ {waitRemaining} second cooldown after an incorrect answer.</p>
           :selected!==null?<p className="lq-sent" role="status">{isTreasure?'✓ Answer saved. Your chest is loading…':'✓ Answer locked. Wait for the teacher to reveal the result.'}</p>
           :!isTreasure&&timeLeft===0?<p className="lq-sent" role="status">Time is up. Wait for the result.</p>
-          :<p className="lq-help">Select ONE answer. Your first choice is final.</p>}
+          :<p className="lq-help">Choose one · First choice is final</p>}
       </section>}
       {isTreasure&&snapshot.status==='active'&&<div className="lq-leaderboard lq-mini-board"><h3>🏆 Live gold standings</h3>
         {snapshot.players.slice(0,5).map((player,index)=><div key={player.id}>
@@ -267,7 +268,7 @@ export function LiveQuizGuestPage({pin}:{pin:string}){
           <span>{['▲','◆','●','■'][index]}</span><b>{option}</b>
           {index===question.correctIndex&&<small className="lq-option-label">Correct</small>}
           {index===selected&&index!==question.correctIndex&&<small className="lq-option-label">Your answer</small>}</div>)}</div>
-        <p className="lq-explanation"><strong>Correct: {question.options[question.correctIndex!]}</strong><br/>{question.explanation}</p>
+        <p className="lq-explanation"><strong>Correct: {question.options[question.correctIndex!]}</strong><br/>{question.explanation}</p><small className="lq-source">{question.sourceContext}</small>
         <p>{snapshot.ownAnswer?.points??0} points this question</p>
         <div className="lq-leaderboard"><h3>Leaderboard</h3>
           {snapshot.players.slice(0,10).map((player,index)=><div key={player.id}>
