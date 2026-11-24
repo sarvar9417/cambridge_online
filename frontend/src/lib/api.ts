@@ -261,7 +261,7 @@ export interface ResultDetail {gradingId:string;appealStatus:'open'|'accepted'|'
 export interface AppealItem {id:string;gradingId:string;reason:string;createdAt:string;studentName:string;displayRef:string;stemMd:string;answerText:string;finalScore:number;marks:number}
 export interface MasteryItem {subtopic_id:string;code:string;title:string;score:number;attempts:number;marksEarned:number;marksPossible:number;compatibilityMapped?:boolean;practiceQuestionCount?:number;practiceReady?:boolean}
 export interface CommandWordProgress {commandWord:string;percentage:number;sampleSize:number}
-export interface ReviewQuestion {id:string;display_ref:string;stem_md:string;context_md:string|null;marks:number|null;command_word:string|null;answer_kind:string;answer_lines:number;extract_confidence:number;storage_path:string;findings:Array<{id?:string;code:string;severity:string;message:string}>}
+export interface ReviewQuestion {id:string;display_ref:string;stem_md:string;context_md:string|null;marks:number|null;command_word:string|null;answer_kind:string;answer_lines:number;extract_confidence:number;storage_path:string;source_url?:string|null;notes?:string|null;structured?:boolean;syllabus_code?:string;findings:Array<{id?:string;code:string;severity:string;message:string}>}
 export interface Flashcard {flashcard_id:string;front_md:string;back_md:string;hint_md:string|null}
 export interface ContentGames {termMatch:Array<{id:string;term:string;definition:string}>;sequence:Array<{id:string;code:string;text:string}>;spotTheGap:Array<{id:string;prompt:string;answer:string}>}
 export interface LessonProgress {courseCode:'9618'|'0478';chapterNo:number;slideId:string;visitedAt:string;completedAt:string|null}
