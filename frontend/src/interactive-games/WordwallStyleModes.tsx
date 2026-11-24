@@ -96,7 +96,7 @@ export function MatchUpBoard({ pairs, recordAnswer }: { pairs: readonly GamePair
   }
 
   return <div className="ig-content ig-match-board">
-    <p className="ig-instruction">Drag each term beside its definition or select a term and then a slot. Place every term to submit.</p>
+    <p className="ig-instruction">Drag or tap to match every term.</p>
     <div className="ig-template-options" role="group" aria-label="Match Up options">
       <label>Matches per page <select value={pageSize} disabled={started} onChange={(event) => setPageSize(event.target.value === 'all' ? 'all' : Number(event.target.value))}>
         <option value="5">5</option><option value="10">10</option><option value="20">20</option>
@@ -185,7 +185,7 @@ export function SpeakingDeck({ prompts }: { prompts: readonly SpeakingPrompt[] }
   }
 
   return <div className="ig-content">
-    <p className="ig-instruction">Deal a card from the shuffled deck. Name the term and explain it in your own words before revealing the answer. This activity does not record audio.</p>
+    <details className="ig-arena-help"><summary>Speaking rules</summary><p>Deal a card. Explain aloud before revealing. Audio is not recorded or assessed.</p></details>
     <div className="ig-template-options" role="group" aria-label="Speaking Cards options">
       <label>Cards per deal <select value={dealSize} onChange={(event) => setDealSize(Number(event.target.value))}>
         <option value="1">1</option><option value="2">2</option><option value="3">3</option>
