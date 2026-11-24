@@ -403,7 +403,8 @@ async function assertInteractiveGames(browser:Browser,base:string){
   // Check actual computed styles in the production bundle, not CSS import order.
   // All tile surfaces use solid backgrounds so contrast can be measured exactly.
   const checkTileContrast=async(page:Page,label:string)=>{
-    const failures=await page.$eval('.ig-game-tile',tiles=>{
+    const failures=await page.evaluate(()=>{
+      const tiles=Array.from(document.querySelectorAll('.ig-game-tile'));
       const luminance=(color:string)=>{
         const rgb=color.match(/[\d.]+/g)?.slice(0,3).map(Number)??[];
         if(rgb.length!==3)return NaN;
