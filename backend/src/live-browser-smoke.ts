@@ -400,6 +400,34 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await teacher.waitForSelector('.ig-game-tile',{timeout:15_000});
   // Nine standalone games plus the teacher-only PIN-based Live Quiz.
   await teacher.waitForFunction(()=>document.querySelectorAll('.ig-game-tile').length===10);
+  // Check actual computed styles in the production bundle, not CSS import order.
+  // All tile surfaces use solid backgrounds so contrast can be measured exactly.
+  const checkTileContrast=async(page:Page,label:string)=>{
+    const failures=await page.evaluate(()=>{
+      const tiles=Array.from(document.querySelectorAll('.ig-game-tile'));
+      return tiles.flatMap(tile=>{
+        const style=getComputedStyle(tile);
+        const background=style.backgroundColor;
+        const bgChannels=background.match(/[\d.]+/g)?.slice(0,3).map(Number)??[];
+        const bgLinear=bgChannels.map(value=>{const c=value/255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;});
+        const bg=bgChannels.length===3?.2126*bgLinear[0]!+.7152*bgLinear[1]!+.0722*bgLinear[2]!:NaN;
+        const reasons:string[]=[];
+        if(!Number.isFinite(bg)||bg>.14||style.backgroundImage!=='none')reasons.push('non-neon or unknown surface '+style.backgroundColor+' '+style.backgroundImage);
+        for(const node of tile.querySelectorAll('strong, small, .ig-game-number')){
+          const fgChannels=getComputedStyle(node).color.match(/[\d.]+/g)?.slice(0,3).map(Number)??[];
+          const fgLinear=fgChannels.map(value=>{const c=value/255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;});
+          const fg=fgChannels.length===3?.2126*fgLinear[0]!+.7152*fgLinear[1]!+.0722*fgLinear[2]!:NaN;
+          const ratio=(Math.max(fg,bg)+.05)/(Math.min(fg,bg)+.05);
+          if(!Number.isFinite(ratio)||ratio<4.5)reasons.push((node.textContent??'')+' contrast '+ratio.toFixed(2));
+        }
+        return reasons.length?[{tile:tile.querySelector('strong')?.textContent,state:tile.getAttribute('aria-pressed'),reasons}]:[];
+      });
+    });
+    if(failures.length)throw Error(label+' game tile contrast: '+JSON.stringify(failures));
+  };
+  await checkTileContrast(teacher,'Teacher default selection');
+  await teacher.hover('.ig-game-tile:nth-child(2)');
+  await checkTileContrast(teacher,'Teacher hover');
   const liveQuizLabel=await teacher.$eval('.ig-game-tile:nth-child(10)',(node)=>node.textContent??'');
   if(!liveQuizLabel.includes('Live Quiz'))throw new Error('Teacher Live Quiz tile is missing');
   const clickGameControl=async(selector:string)=>{
@@ -711,6 +739,7 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await student.waitForFunction(()=>document.querySelectorAll('.ig-game-tile').length===9);
   const mobileOverflow=await student.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
   if(mobileOverflow>3)throw new Error('Interactive Games mobile horizontal overflow: '+mobileOverflow);
+  await checkTileContrast(student,'Student mobile default selection');
   await assertAxe(student,'Interactive Games student mobile');
   for(let modeIndex=1;modeIndex<=8;modeIndex++){
     const selector='.ig-game-tile:nth-child('+modeIndex+')';
@@ -724,6 +753,7 @@ async function assertInteractiveGames(browser:Browser,base:string){
     },{timeout:5_000},modeIndex);
     const overlap=await student.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
     if(overlap>3)throw new Error('Interactive Games mobile overflow in mode '+modeIndex+': '+overlap);
+    await checkTileContrast(student,'Student mobile mode '+modeIndex);
     await assertAxe(student,'Interactive Games student mobile mode '+modeIndex);
     if(modeIndex===5){
       await student.select('.ig-template-options select','questions');
