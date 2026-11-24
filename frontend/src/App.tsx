@@ -224,10 +224,18 @@ export function App() {
 
   useEffect(() => {
     if (user?.role !== 'owner') return;
-    api<{ waiting: { pendingUsers: number; reviewQueue: number; openAppeals: number } }>('/admin/overview')
-      .then((result) => setBadges(result.waiting))
-      // A failed badge fetch must not break the page it decorates.
-      .catch(() => {});
+    let active=true;
+    let sequence=0;
+    const refresh=()=>{
+      const request=++sequence;
+      void api<{ waiting: { pendingUsers: number; reviewQueue: number; openAppeals: number } }>('/admin/overview')
+        .then(result=>{if(active&&request===sequence)setBadges(result.waiting)})
+        .catch(()=>{});
+    };
+    refresh();
+    window.addEventListener('corpus-review-changed',refresh);
+    return()=>{active=false;window.removeEventListener('corpus-review-changed',refresh)};
+
   }, [user, route.path]);
 
   const logout = async () => {

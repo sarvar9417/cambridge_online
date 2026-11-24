@@ -6,6 +6,7 @@ export type PaperState = 'reviewed' | 'needs_review' | 'running' | 'failed' | 'q
 
 export interface CorpusPaper {
   id: string;
+  syllabusCode: string;
   year: number;
   series: string;
   component: number;
@@ -17,6 +18,7 @@ export interface CorpusPaper {
   questions: number;
   leaves: number;
   needsReview: number;
+  unflaggedReview: number;
   state: PaperState;
   error: string | null;
 }
@@ -47,10 +49,11 @@ export class CorpusService {
 
     const [papers, findings] = await Promise.all([
       this.pool.query(`
-        select sp.id, sp.year, sp.series::text series, c.number component, sp.variant,
+        select sp.id, sy.code syllabus_code, sp.year, sp.series::text series, c.number component, sp.variant,
                count(q.id)::int questions,
                count(q.id) filter (where q.marks is not null)::int leaves,
                count(q.id) filter (where q.status = 'needs_review')::int needs_review,
+               count(q.id) filter (where q.status='needs_review' and not exists(select 1 from validation_findings vf where vf.ref_table='questions' and vf.ref_id=q.id and vf.resolved_at is null))::int unflagged_review,
                exists (
                  select 1 from source_papers ms
                  where ms.kind = 'MS' and ms.year = sp.year and ms.series = sp.series
@@ -60,6 +63,7 @@ export class CorpusService {
                j.error job_error
         from source_papers sp
         join components c on c.id = sp.component_id
+        join syllabi sy on sy.id=sp.syllabus_id
         left join questions q on q.source_paper_id = sp.id
         left join lateral (
           select status, id from ingestion_runs
@@ -71,7 +75,7 @@ export class CorpusService {
           order by finished_at desc nulls last limit 1
         ) j on true
         where sp.kind = 'QP'
-        group by sp.id, sp.year, sp.series, c.number, sp.variant, ir.status, j.error
+        group by sp.id, sy.code, sp.year, sp.series, c.number, sp.variant, ir.status, j.error
         order by sp.year desc, sp.series, c.number, sp.variant`),
 
       // Which rules are firing, so the operator can see whether the queue is one
@@ -80,10 +84,9 @@ export class CorpusService {
         select vf.rule_code code, vf.severity::text severity, count(*)::int open
         from validation_findings vf
         join questions q on q.id = vf.ref_id and vf.ref_table = 'questions'
-        where vf.resolved_at is null
+        where vf.resolved_at is null and q.status='needs_review'
         group by vf.rule_code, vf.severity
-        order by count(*) desc, vf.rule_code
-        limit 20`),
+        order by count(*) desc, vf.rule_code`),
     ]);
 
     const totals: Record<PaperState, number> = {
@@ -108,6 +111,7 @@ export class CorpusService {
 
       return {
         id: String(row.id),
+        syllabusCode: String(row.syllabus_code??''),
         year: Number(row.year),
         series: String(row.series),
         component: Number(row.component),
@@ -119,6 +123,7 @@ export class CorpusService {
         questions,
         leaves: Number(row.leaves),
         needsReview,
+        unflaggedReview: Number(row.unflagged_review??0),
         state,
         error: state === 'failed' && row.job_error ? String(row.job_error).slice(0, 240) : null,
       };
