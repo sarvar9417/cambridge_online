@@ -90,7 +90,7 @@ export function ConceptCompareGame({ courseCode, scopes, selectedDeckId, onSelec
   </div>;
 
   return <div className="ig-content ig-compare">
-    <p className="ig-instruction">Move each statement to one or BOTH terms. A shared statement stays available for both columns. All answers are checked together at the end.</p>
+    <details className="ig-arena-help"><summary>How to play</summary><p>Assign each statement to one or both terms. Check all answers together.</p></details>
     <p className="ig-compare-availability" role="status">{available.length} comparison pairs across {availableChapters.length} selected {availableChapters.length === 1 ? 'chapter' : 'chapters'} · Choose a pair to practise.</p>
     <div className="ig-compare-controls">
       <label>Comparison
@@ -116,7 +116,7 @@ export function ConceptCompareGame({ courseCode, scopes, selectedDeckId, onSelec
         onDragOver={event => { if (!submitted) event.preventDefault(); }}
         onDrop={event => drop(event, side)} aria-label={side === 'A' ? deck.a : deck.b}>
         <h3>{side === 'A' ? deck.a : deck.b}</h3>
-        <p>Drop a statement here or use its Add button.</p>
+        <p>Drop here or tap +</p>
         {items.filter(item => placed[item.index]?.[side]).map(item =>
           <div key={item.index} className={'ig-compare-placement ' +
             (submitted ? (item.expected.includes(side) ? 'is-correct' : 'is-wrong') : '')}>
@@ -128,7 +128,7 @@ export function ConceptCompareGame({ courseCode, scopes, selectedDeckId, onSelec
     </div>
     <div className="ig-compare-bank">
       <h3>Mixed statements</h3>
-      <p className="ig-instruction">Drag any card to a column, or press Add to place it. The card remains here so you can use it in the other column too.</p>
+      <p className="ig-instruction">Drag or tap + · Both terms allowed</p>
       {items.map(item => {
         const chosen = placed[item.index] ?? {};
         const exact = match(chosen, item.expected) === 2;
