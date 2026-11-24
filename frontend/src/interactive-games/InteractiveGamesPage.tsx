@@ -23,6 +23,7 @@ import { COMPARE_DECKS, compareDeckMatchesScope } from './concept-compare-bank';
 import './interactive-games.css';
 import './remote-games.css';
 import './game-polish.css';
+import './neon-arena.css';
 
 /** Source-backed multi-chapter practice, with session-only feedback. */
 export function InteractiveGamesPage({ isTeacher, initialCourseCode = '9618', startLiveQuiz = false }: {
@@ -70,6 +71,7 @@ export function InteractiveGamesPage({ isTeacher, initialCourseCode = '9618', st
   const [dueOnly, setDueOnly] = useState(false);
   const [fullscreenError, setFullscreenError] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [arena,setArena]=useState(false);
 
   useEffect(() => {
     const update = () => setIsFullscreen(document.fullscreenElement === document.querySelector('.ig-page'));
@@ -347,11 +349,12 @@ export function InteractiveGamesPage({ isTeacher, initialCourseCode = '9618', st
     }
   }
 
-  return <GameSignalContext.Provider value={signal}><section className="ig-page" aria-label="Interactive Games">
+  return <GameSignalContext.Provider value={signal}><section className={'ig-page ig-neon'+(arena?' is-arena':'')} aria-label="Interactive Games">
     {!isTeacher&&<StudentLiveQuizLinks />}
     <div className="ig-session-bar" role="group" aria-label="Game session controls">
       {showClock && !liveQuizOpen && <span className={'ig-clock' + (timeExpired ? ' is-expired' : '')} role="timer">◷ {timeLimit > 0 ? 'Remaining ' : 'Elapsed '}{time}</span>}
-      <span className="ig-session-name">Interactive Games · {chosenChapterCount} chapters, {scopes.length} selections</span>
+      <span className="ig-session-name"><span className="ig-arena-dot" aria-hidden="true"/> Cambridge {courseCode} · Games</span>
+      {(ready||arena) && <button type="button" className="ig-arena-toggle" aria-pressed={arena} onClick={()=>setArena(value=>!value)}>{arena?'Exit Arena':'Enter Arena'}</button>}
       {isTeacher && <button type="button" className="ig-classroom-toggle" aria-pressed={classroomMode}
         disabled={!ready} onClick={() => { setLiveQuizOpen(false); setClassroomMode((value) => !value); setRound(0); resetGame(); }}>
         {classroomMode ? 'Exit Classroom Mode' : 'Start Classroom Mode'}
@@ -382,8 +385,7 @@ export function InteractiveGamesPage({ isTeacher, initialCourseCode = '9618', st
     <div className="ig-hero">
       <div>
         <span className="ig-eyebrow">CAMBRIDGE {courseCode} · LIVE CURRICULUM BANK</span>
-        <h1>Learn by playing.</h1>
-        <p>Select any combination of chapters, syllabus topics and Hodder sections. Play nine game modes: eight glossary games plus Concept Compare, a curated two-term challenge.</p>
+        <h1>Interactive Games</h1>
         <div className="ig-pills">
           <span>{chosenChapterCount ? chosenChapterCount + ' chapters selected' : 'Select chapters'}</span>
           <span>{scopes.length} curriculum selections</span>
@@ -505,14 +507,14 @@ export function InteractiveGamesPage({ isTeacher, initialCourseCode = '9618', st
           disabled={(reviewOnly && game.id !== 'flash-cards') || (game.id === 'concept-compare' && !hasCompareDeck) || !gameIsAvailable(game.id, reviewOnly ? reviewPairs : allPairs)} aria-pressed={!liveQuizOpen && currentMode === game.id}
           className={'ig-game-tile' + (currentMode === game.id && !liveQuizOpen ? ' is-selected' : '')}
           onClick={() => { setLiveQuizOpen(false); resetGame(game.id); }}>
-          <span className="ig-game-number">0{i + 1}</span>
+          <span className="ig-game-number" aria-hidden="true">{['⇄','▣','◉','◈','▦','⚡','◎','A↔','⚖'][i]??'◆'}</span>
           <strong>{game.label}</strong>
           <small>{game.id === 'concept-compare' && !hasCompareDeck ? 'Select a supported 9618 chapter, topic or Hodder section.' : gameIsAvailable(game.id, reviewOnly ? reviewPairs : allPairs) ? game.description : 'This selection needs more suitable terms.'}</small>
         </button>)}
         {isTeacher && <button type="button" className={'ig-game-tile' + (liveQuizOpen ? ' is-selected' : '')}
           aria-pressed={liveQuizOpen} onClick={() => { setClassroomMode(false); setLiveQuizOpen(true); }}>
-          <span className="ig-game-number">10</span>
-          <strong>🎮 Live Quiz · Blooket-style</strong>
+          <span className="ig-game-number" aria-hidden="true">♛</span>
+          <strong>Live Quiz</strong>
           <small>Classroom PIN, QR join, live scoring, leaderboard and individual mistake reports.</small>
         </button>}
       </div>
@@ -520,11 +522,12 @@ export function InteractiveGamesPage({ isTeacher, initialCourseCode = '9618', st
         onExit={() => setLiveQuizOpen(false)} onToggleFullscreen={toggleFullscreen} isFullscreen={isFullscreen} /> : <>
       <div className="ig-workspace">
         <div className="ig-workspace-head">
-          <div><span className="ig-eyebrow">NOW PLAYING</span><h2>{activeGame.label}</h2>
+          <div><span className="ig-eyebrow"><span className="ig-arena-dot" aria-hidden="true"/> NOW PLAYING · {courseCode}</span><h2>{activeGame.label}</h2>
             <p>{chosenChapterCount} chapters · {scopes.length} selections · {currentMode === 'concept-compare' ? 'curated comparison deck' : pairs.length + ' terms in this round'}
               {staged ? ` · Stage ${stageNumber} of ${stageTotal} (${selectedCount} selected)` : ''}</p>
           </div>
           <div className="ig-workspace-head-actions">
+            <button className="ig-arena-toggle" type="button" aria-pressed={arena} onClick={()=>setArena(value=>!value)}>{arena?'Exit Arena':'Arena'}</button>
             <button className="ig-fullscreen-toggle" type="button" onClick={toggleFullscreen}
               aria-pressed={isFullscreen}>{isFullscreen ? '⤢ Exit full screen' : '⛶ Full screen'}</button>
             <button className="ig-reset" type="button" onClick={() => resetGame(undefined, true)}>↻ New round</button>
@@ -535,9 +538,7 @@ export function InteractiveGamesPage({ isTeacher, initialCourseCode = '9618', st
           This game shows up to {stageSize} terms at a time for readability. {selectedCount} terms selected ·
           stage {stageNumber} of {stageTotal}. Use Next vocabulary round to practise the remaining terms.
         </p>}
-        {currentMode === 'quiz' && <p className="ig-stage-notice">
-          Quiz question time: 30 seconds each. The separate round time limit above is optional.
-        </p>}
+
         <div className="ig-session-metrics" role="status" aria-label="Current practice results">
           {isScored && <><span>✓ {correctCount} correct</span><span>✕ {wrongCount} mistakes</span></>}
           <span>◈ {reviewedCount} reviewed</span>
@@ -591,8 +592,7 @@ export function InteractiveGamesPage({ isTeacher, initialCourseCode = '9618', st
             <summary>Show cards ({pairs.length})</summary>
             <ol>{pairs.map((pair) => <li key={pair.id}><strong>{pair.term}</strong><div>{pair.definition}</div></li>)}</ol>
           </details>}
-          <p className="ig-result-disclaimer">Practice feedback only. Revealed cards and speaking prompts are not assessed mastery.
-            Only student-submitted formative results can be saved; they are not official grades.</p>
+          <p className="ig-result-disclaimer">Practice results only · Not official grades or verified mastery.</p>
           {!isTeacher && currentMode !== 'concept-compare' && <div className="ig-practice-save">
             <button type="button" disabled={practiceSaveState === 'saving' || practiceSaveState === 'saved'}
               onClick={() => void savePractice()}>
