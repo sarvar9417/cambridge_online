@@ -578,6 +578,22 @@ async function assertInteractiveGames(browser:Browser,base:string){
   await assertText('.ig-box.is-opened:nth-child(1)','✓ Correct');
 
   await clickMode(6);
+  await teacher.waitForSelector('.ig-quiz .ig-arena-progress');
+  await clickGameControl('.ig-workspace-head-actions .ig-arena-toggle');
+  await teacher.waitForSelector('.ig-page.is-arena');
+  const arenaLayout=await teacher.$eval('.ig-page.is-arena',root=>{
+    const workspace=root.querySelector('.ig-workspace');
+    const setup=root.querySelector('.ig-data-controls');
+    const grid=root.querySelector('.ig-quiz .ig-choice-grid');
+    if(!workspace||!setup||!grid)return null;
+    return {setupHidden:getComputedStyle(setup).display==='none',
+      dark:getComputedStyle(workspace).backgroundImage.includes('gradient'),
+      cols:getComputedStyle(grid).gridTemplateColumns.trim().split(/\s+/).length};
+  });
+  if(!arenaLayout?.setupHidden||!arenaLayout.dark||arenaLayout.cols!==2)
+    throw new Error('Interactive Games arena must isolate gameplay in two-column neon layout: '+JSON.stringify(arenaLayout));
+  await clickGameControl('.ig-workspace-head-actions .ig-arena-toggle');
+  await teacher.waitForFunction(()=>!document.querySelector('.ig-page.is-arena'));
   for(let index=0;index<9;index++){
     await teacher.waitForFunction((number)=>document.querySelector('.ig-quiz .ig-score')?.textContent?.startsWith(`Question ${number} /`),{},index+1);
     const answerRows=await teacher.$$eval('.ig-quiz .ig-choice-card',(nodes)=>nodes.map((node)=>(node as HTMLElement).offsetTop));
